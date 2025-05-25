@@ -1,8 +1,5 @@
 -- 1. Prikaz svih davatelja i datuma zadnjeg puta darivanja krvi
-SELECT 
-    d.ime, 
-    d.prezime, 
-    MAX(ptd.datum) AS zadnje_darivanje
+SELECT d.ime, d.prezime, MAX(ptd.datum) AS zadnje_darivanje
 FROM PROSLI_TERMIN_DAVATELJ ptd
 JOIN DAVATELJ d ON ptd.id_davatelj = d.id_davatelj
 GROUP BY d.id_davatelj, d.ime, d.prezime;
@@ -19,13 +16,12 @@ FROM ZAHTJEV_BOLNICE AS z
 JOIN BOLNICE AS b ON z.id_bolnica = b.id_bolnice
 JOIN KRVNE_GRUPE AS k ON z.id_krvna_grupa = k.id_krvna_grupa
 WHERE z.id_zahtjev NOT IN (
-    SELECT id_zahtjev FROM ISPUNJENI_ZAHTJEVI_BOLNICA
+	SELECT id_zahtjev 
+  FROM ISPUNJENI_ZAHTJEVI_BOLNICA
 );
 
 -- 4. Broj uspješnih i neuspješnih donacija po davatelju
-SELECT d.ime, d.prezime,
-       SUM(p.uspjeh = 'T') AS uspjesne_donacije,
-       SUM(p.uspjeh = 'F') AS neuspjesne_donacije
+SELECT d.ime, d.prezime,SUM(p.uspjeh = 'T') AS uspjesne_donacije,SUM(p.uspjeh = 'F') AS neuspjesne_donacije
 FROM DAVATELJ AS d
 LEFT JOIN PROSLI_TERMIN_DAVATELJ AS p ON d.id_davatelj = p.id_davatelj
 GROUP BY d.id_davatelj;
@@ -50,9 +46,7 @@ JOIN KRVNE_GRUPE kg ON zk.id_krvna_grupa = kg.id_krvna_grupa
 ORDER BY zk.zalihe DESC;
 
 -- 8. Bolnice koje imaju više od jednog zahtjeva za krv
-SELECT 
-    b.naziv, 
-    COUNT(zb.id_zahtjev) AS broj_zahtjeva
+SELECT b.naziv, COUNT(zb.id_zahtjev) AS broj_zahtjeva
 FROM ZAHTJEV_BOLNICE zb
 JOIN BOLNICE b ON zb.id_bolnica = b.id_bolnice
 GROUP BY b.id_bolnice, b.naziv
