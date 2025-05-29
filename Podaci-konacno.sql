@@ -19,7 +19,7 @@ INSERT INTO OSOBLJE (ime, prezime, uloga) VALUES
 ('Tomica', 'Čović', 'Laboratorijski tehničar'),
 ('Adriana', 'Vrban', 'Administrator');
 
--- 2. KRVNE_GRUPE (ostaje 8)
+-- 2. KRVNE_GRUPE
 INSERT INTO KRVNE_GRUPE (krvna_grupa)
 VALUES
 ('0+'),

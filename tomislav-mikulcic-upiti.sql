@@ -1,15 +1,7 @@
--- 1. Pacijenti i njihov zadnji status (ako postoji)
-SELECT p.ime, p.prezime, s.opis
+-- 1. Pacijenti i njihov status (ako postoji)
+SELECT CONCAT(p.ime, ' ', p.prezime) AS pacijent, s.opis
 FROM PACIJENT p
-LEFT JOIN (
-  SELECT id_pacijent, opis
-  FROM STATUS_PACIJENTA
-  WHERE (id_pacijent, id_osoblje) IN (
-    SELECT id_pacijent, MAX(id_osoblje) 
-    FROM STATUS_PACIJENTA 
-    GROUP BY id_pacijent
-  )
-) s ON p.id_pacijent = s.id_pacijent
+LEFT JOIN STATUS_PACIJENTA s ON p.id_pacijent = s.id_pacijent
 WHERE s.opis IS NOT NULL;
 
 -- 2. Broj uspješnih donacija po krvnoj grupi
