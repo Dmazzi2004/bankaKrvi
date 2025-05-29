@@ -28,7 +28,19 @@ SELECT p.ime, p.prezime, tp.vrijeme, tp.status
 	INNER JOIN PACIJENT p ON tp.id_pacijent = p.id_pacijent
 	WHERE tp.status = 'Neuspješan';
     
--- 4. Ukupan broj zahtjeva po krvnoj grupi, sortirano po broju zahtjeva
+-- 4. Popis svih zahtjeva bolnica s nazivom bolnice, 
+-- krvnom grupom i imenom davatelja koji je ispunio zahtjev
+/* Problem koji rješava: Prikazuje sve ispunjene zahtjeve bolnica zajedno
+   s podacima o traženoj krvnoj grupi i identitetu davatelja – korisno za
+   praćenje isporuke i evidenciju odgovornosti. */
+SELECT b.naziv AS bolnica, kg.krvna_grupa, d.ime AS davatelj_ime, d.prezime AS davatelj_prezime
+	FROM ISPUNJENI_ZAHTJEVI_BOLNICA iz
+	INNER JOIN ZAHTJEV_BOLNICE z ON iz.id_zahtjev = z.id_zahtjev
+	INNER JOIN BOLNICE b ON z.id_bolnica = b.id_bolnice
+	INNER JOIN KRVNE_GRUPE kg ON z.id_krvna_grupa = kg.id_krvna_grupa
+	INNER JOIN DAVATELJ d ON iz.id_davatelj = d.id_davatelj;
+    
+-- 5. Ukupan broj zahtjeva po krvnoj grupi, sortirano po broju zahtjeva
 /* Problem koji rješava: Pomaže vidjeti koja krvna grupa je najtraženija */
 SELECT kg.krvna_grupa, COUNT(*) AS broj_zahtjeva
 	FROM ZAHTJEV_BOLNICE zb
@@ -36,16 +48,30 @@ SELECT kg.krvna_grupa, COUNT(*) AS broj_zahtjeva
 	GROUP BY kg.krvna_grupa
 	ORDER BY broj_zahtjeva DESC;
     
--- 5. Pacijenti čiji je status zabilježen od strane liječnika (osoblje uloga = 'Liječnik')
-/* Problem koji rješava: Filtrira zapise koje je potpisao liječnik 
-- korisno za izdvajanje službenih medicinskih statusa. */
-SELECT p.ime, p.prezime, s.opis, o.ime AS osoblje_ime, o.prezime AS osoblje_prezime
-	FROM STATUS_PACJENTA s
+-- 6. Broj zahtjeva po bolnici
+/* Problem koji rješava: Omogućuje uvid u broj zahtjeva za krv po bolnici,
+   što pomaže u analizi potreba i učinkovitosti distribucije krvi. */
+SELECT b.naziv AS bolnica, COUNT(z.id_zahtjev) AS broj_zahtjeva
+	FROM BOLNICE b
+	INNER JOIN ZAHTJEV_BOLNICE z ON b.id_bolnice = z.id_bolnica
+	GROUP BY b.naziv
+	ORDER BY broj_zahtjeva DESC;
+
+-- 7. Pacijenti čiji je status zabilježen od strane liječnika
+/* Problem koji riješava: Izdvaja statuse koje je evidentirao liječnik (uloga = 'Liječnik) */
+SELECT 
+    p.ime AS pacijent_ime, 
+    p.prezime AS pacijent_prezime, 
+    s.opis AS status_opis, 
+    o.ime AS lijecnik_ime, 
+    o.prezime AS lijecnik_prezime
+	FROM STATUS_PACIJENTA s
 	INNER JOIN PACIJENT p ON s.id_pacijent = p.id_pacijent
-    INNER JOIN OSOBLJE o ON s.id_osoblje = o.id_osoblje
-	WHERE o.uloga = 'Liječnik';
-    
--- 6. Koliko darivanja je imao svaki darivatelj, bez obzira na status
+	INNER JOIN OSOBLJE o ON s.id_osoblje = o.id_osoblje
+	WHERE o.uloga = 'Liječnik'
+	ORDER BY p.prezime, p.ime;
+
+-- 8. Koliko darivanja je imao svaki darivatelj, bez obzira na status
 /* Problem koji rješava: Daje pregled ukupnog angažmana svakog davatelja 
 - korisno za statistiku i motivaciju. */
 SELECT d.ime, d.prezime, COUNT(tds.id_termin_davatelj) AS broj_termina
