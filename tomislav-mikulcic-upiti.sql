@@ -1,53 +1,67 @@
--- 1. Prikaz svih davatelja i datuma zadnjeg puta darivanja krvi
-SELECT d.ime, d.prezime, MAX(ptd.datum) AS zadnje_darivanje
-FROM PROSLI_TERMIN_DAVATELJ ptd
-JOIN DAVATELJ d ON ptd.id_davatelj = d.id_davatelj
-GROUP BY d.id_davatelj, d.ime, d.prezime;
+-- 1. Pacijenti i njihov zadnji status (ako postoji)
+SELECT p.ime, p.prezime, s.opis
+FROM PACIJENT p
+LEFT JOIN (
+  SELECT id_pacijent, opis
+  FROM STATUS_PACIJENTA
+  WHERE (id_pacijent, id_osoblje) IN (
+    SELECT id_pacijent, MAX(id_osoblje) 
+    FROM STATUS_PACIJENTA 
+    GROUP BY id_pacijent
+  )
+) s ON p.id_pacijent = s.id_pacijent
+WHERE s.opis IS NOT NULL;
 
--- 2. Krvne grupe čije su zalihe prazne
-SELECT k.krvna_grupa, z.zalihe
-FROM ZALIHE_KRVNE_GRUPE AS z
-JOIN KRVNE_GRUPE AS k ON z.id_krvna_grupa = k.id_krvna_grupa
-WHERE z.zalihe = 0;
+-- 2. Broj uspješnih donacija po krvnoj grupi
+SELECT k.krvna_grupa, COUNT(*) AS uspjesne_donacije
+FROM ISPUNJENI_ZAHTJEVI_BOLNICA iz
+JOIN ZAHTJEV_BOLNICE zb ON iz.id_zahtjev = zb.id_zahtjev
+JOIN KRVNE_GRUPE k ON zb.id_krvna_grupa = k.id_krvna_grupa
+GROUP BY k.krvna_grupa;
 
--- 3. Zahtjevi bolnica koji još nisu ispunjeni
-SELECT z.id_zahtjev, b.naziv, k.krvna_grupa, z.rok
-FROM ZAHTJEV_BOLNICE AS z
-JOIN BOLNICE AS b ON z.id_bolnica = b.id_bolnice
-JOIN KRVNE_GRUPE AS k ON z.id_krvna_grupa = k.id_krvna_grupa
-WHERE z.id_zahtjev NOT IN (
-	SELECT id_zahtjev 
-  FROM ISPUNJENI_ZAHTJEVI_BOLNICA
+-- 3. Prosječna dob pacijenata po krvnoj grupi
+SELECT k.krvna_grupa, ROUND(AVG(YEAR(CURDATE()) - p.godiste)) AS prosjecna_dob
+FROM PACIJENT p
+JOIN KRVNE_GRUPE k ON p.id_krvna_grupa = k.id_krvna_grupa
+GROUP BY k.krvna_grupa
+HAVING COUNT(*) > 1;
+
+-- 4. Donatori koji nisu imali nijedan termin
+SELECT d.ime, d.prezime
+FROM DAVATELJ d
+LEFT JOIN TERMINI_DAVATELJ_SPOJENO t ON d.id_davatelj = t.id_davatelj
+WHERE t.id_termin_davatelj IS NULL;
+
+-- 5. Zadnji termin svakog pacijenta i tko ga je pregledao
+SELECT
+  CONCAT(p.ime, ' ', p.prezime) AS pacijent,
+  CONCAT(o.ime, ' ', o.prezime) AS osoblje,
+  t.vrijeme AS zadnji_termin
+FROM PACIJENT p
+JOIN TERMINI_PACIJENTI_SPOJENO t
+  ON p.id_pacijent = t.id_pacijent
+JOIN OSOBLJE o
+  ON t.id_osoblje = o.id_osoblje
+WHERE t.vrijeme = (
+  SELECT MAX(vrijeme)
+  FROM TERMINI_PACIJENTI_SPOJENO
+  WHERE id_pacijent = p.id_pacijent
 );
 
--- 4. Broj uspješnih i neuspješnih donacija po davatelju
-SELECT d.ime, d.prezime,SUM(p.uspjeh = 'T') AS uspjesne_donacije,SUM(p.uspjeh = 'F') AS neuspjesne_donacije
-FROM DAVATELJ AS d
-LEFT JOIN PROSLI_TERMIN_DAVATELJ AS p ON d.id_davatelj = p.id_davatelj
-GROUP BY d.id_davatelj;
-
--- 5. Broj termina za darivanje krvi po danima, sortirano uzlazno
-SELECT DATE(vrijeme) AS dan, COUNT(*) AS broj_termina
-FROM TERMINI_DAVATELJ
-GROUP BY dan
-ORDER BY dan ASC;
-
--- 6. Davatelji koji su već donirali i imaju novi termin
-SELECT DISTINCT d.ime, d.prezime, td.vrijeme
-FROM DAVATELJ AS d
-JOIN PROSLI_TERMIN_DAVATELJ AS pt ON d.id_davatelj = pt.id_davatelj
-JOIN TERMINI_DAVATELJ AS td ON td.id_davatelj = d.id_davatelj
-WHERE pt.uspjeh = 'T';
-
--- 7. Sve krvne grupe i njihove zalihe, sortirano po najvećim zalihama
-SELECT kg.krvna_grupa, zk.zalihe
-FROM ZALIHE_KRVNE_GRUPE zk
-JOIN KRVNE_GRUPE kg ON zk.id_krvna_grupa = kg.id_krvna_grupa
-ORDER BY zk.zalihe DESC;
-
--- 8. Bolnice koje imaju više od jednog zahtjeva za krv
-SELECT b.naziv, COUNT(zb.id_zahtjev) AS broj_zahtjeva
-FROM ZAHTJEV_BOLNICE zb
-JOIN BOLNICE b ON zb.id_bolnica = b.id_bolnice
-GROUP BY b.id_bolnice, b.naziv
-HAVING COUNT(zb.id_zahtjev) > 1;
+-- 6. Broj donatora i pacijenata po krvnoj grupi
+SELECT
+  k.krvna_grupa,
+  COALESCE(donatori.count,0)  AS broj_davatelja,
+  COALESCE(pacijenata.count,0) AS broj_pacijenata
+FROM KRVNE_GRUPE k
+LEFT JOIN (
+  SELECT id_krvna_grupa, COUNT(*) AS count
+  FROM DAVATELJ
+  GROUP BY id_krvna_grupa
+) donatori ON k.id_krvna_grupa = donatori.id_krvna_grupa
+LEFT JOIN (
+  SELECT id_krvna_grupa, COUNT(*) AS count
+  FROM PACIJENT
+  GROUP BY id_krvna_grupa
+) pacijenata ON k.id_krvna_grupa = pacijenata.id_krvna_grupa
+ORDER BY k.krvna_grupa;
