@@ -15,7 +15,8 @@ GROUP BY k.krvna_grupa;
 SELECT k.krvna_grupa, ROUND(AVG(YEAR(CURDATE()) - p.godiste)) AS prosjecna_dob
 FROM PACIJENT p
 JOIN KRVNE_GRUPE k ON p.id_krvna_grupa = k.id_krvna_grupa
-GROUP BY k.krvna_grupa;
+GROUP BY k.krvna_grupa
+HAVING COUNT(*) > 1;
 
 -- 4. Donatori koji nisu imali nijedan termin
 SELECT d.ime, d.prezime
